@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Todo API with Lambda and API Gateway
+
+Globals:
+  Api:
+    Cors:
+      AllowOrigin: "'*'"
+      AllowHeaders: "'Content-Type,x-auth-token'"
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+  Function:
+    Runtime: nodejs20.x
+    CodeUri: ./
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        JWT_SECRET: '{{resolve:ssm:/todoapp/JWT_SECRET}}'
+        MONGODB_URI: '{{resolve:ssm:/todoapp/MONGODB_URI}}'
+
+Resources:
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/handlers/auth.handler
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: todoapp/*
+      Events:
+        AuthApi:
+          Type: Api
+          Properties:
+            Path: /auth/{proxy+}
+            Method: ANY
+
+  TodosFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/handlers/todos.handler
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: todoapp/*
+      Events:
+        TodosApi:
+          Type: Api
+          Properties:
+            Path: /todos/{proxy+}
+            Method: ANY
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway URL
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod'
+    Export:
+      Name: TodoApiUrl
